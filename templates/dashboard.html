@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReviewGuard Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+      color: #fff;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+    header .logo { font-size: 2rem; }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: .5px; }
+    header p  { font-size: .85rem; opacity: .75; margin-top: .2rem; }
+
+    /* ── Layout ── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 6px rgba(0,0,0,.08);
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    /* ── Predict section ── */
+    #predict-card textarea {
+      width: 100%;
+      padding: .75rem 1rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: .95rem;
+      resize: vertical;
+      min-height: 100px;
+      font-family: inherit;
+      transition: border-color .2s;
+    }
+    #predict-card textarea:focus { outline: none; border-color: #667eea; }
+
+    .btn {
+      display: inline-block;
+      margin-top: .75rem;
+      padding: .6rem 1.4rem;
+      background: #667eea;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+    }
+    .btn:hover  { background: #5a67d8; }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    #predict-result {
+      margin-top: 1rem;
+      padding: .9rem 1.2rem;
+      border-radius: 8px;
+      font-size: .95rem;
+      display: none;
+    }
+    .result-positive { background: #f0fff4; border-left: 4px solid #38a169; }
+    .result-neutral  { background: #fffaf0; border-left: 4px solid #dd6b20; }
+    .result-negative { background: #fff5f5; border-left: 4px solid #e53e3e; }
+
+    .badge {
+      display: inline-block;
+      padding: .2rem .7rem;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-positive { background: #c6f6d5; color: #276749; }
+    .badge-neutral  { background: #feebc8; color: #7b341e; }
+    .badge-negative { background: #fed7d7; color: #822727; }
+
+    /* ── Batch upload section ── */
+    .upload-area {
+      border: 2px dashed #cbd5e0;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .upload-area:hover { border-color: #667eea; background: #f7f8ff; }
+    .upload-area input[type="file"] { display: none; }
+    .upload-area .upload-icon { font-size: 2rem; }
+    .upload-area p { font-size: .9rem; color: #718096; margin-top: .3rem; }
+
+    #batch-status { margin-top: .75rem; font-size: .9rem; color: #718096; min-height: 1.2rem; }
+
+    /* Sentiment totals pills */
+    #totals-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .total-pill {
+      flex: 1;
+      min-width: 130px;
+      padding: .75rem 1rem;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .pill-positive { background: #f0fff4; border: 1px solid #9ae6b4; }
+    .pill-neutral  { background: #fffaf0; border: 1px solid #fbd38d; }
+    .pill-negative { background: #fff5f5; border: 1px solid #feb2b2; }
+    .total-pill .pill-num  { font-size: 1.8rem; font-weight: 700; }
+    .total-pill .pill-lbl  { font-size: .78rem; text-transform: uppercase; letter-spacing: .5px; color: #718096; }
+
+    /* ── Charts ── */
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      max-height: 380px;
+    }
+
+    /* ── Keywords ── */
+    #keywords-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-top: .5rem;
+    }
+    .kw-tag {
+      background: #fed7d7;
+      color: #822727;
+      padding: .3rem .8rem;
+      border-radius: 999px;
+      font-size: .85rem;
+      font-weight: 600;
+    }
+    .kw-tag span { font-weight: 400; opacity: .75; margin-left: .25rem; }
+
+    /* ── Download link ── */
+    #download-link {
+      display: none;
+      margin-top: .75rem;
+      color: #667eea;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: .9rem;
+    }
+    #download-link:hover { text-decoration: underline; }
+
+    /* ── Error ── */
+    .error-msg {
+      color: #c53030;
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: 8px;
+      padding: .6rem 1rem;
+      font-size: .88rem;
+      margin-top: .75rem;
+    }
+
+    /* ── Loading spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      vertical-align: middle;
+      margin-right: .4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🛡️</div>
+  <div>
+    <h1>ReviewGuard</h1>
+    <p>Sentiment analysis for electronics product reviews</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── 1. Single Review Predictor ── -->
+  <div class="card" id="predict-card">
+    <h2>🔍 Test a Single Review</h2>
+    <textarea id="review-input" placeholder='e.g. "Battery drains within 2 hours, very disappointed"'></textarea>
+    <button class="btn" id="predict-btn" onclick="predictSingle()">Analyse Sentiment</button>
+    <div id="predict-result"></div>
+  </div>
+
+  <!-- ── 2. Batch CSV Upload ── -->
+  <div class="card">
+    <h2>📂 Batch Analysis (CSV Upload)</h2>
+    <div class="upload-area" onclick="document.getElementById('csv-file').click()">
+      <input type="file" id="csv-file" accept=".csv" onchange="handleBatchUpload()" />
+      <div class="upload-icon">📄</div>
+      <p>Click to upload a CSV with <strong>review_text</strong> and <strong>product_name</strong> columns</p>
+    </div>
+    <div id="batch-status"></div>
+    <a id="download-link" href="/download-batch" download="reviewguard_predictions.csv">
+      ⬇ Download predictions CSV
+    </a>
+
+    <!-- Totals -->
+    <div id="totals-row" style="display:none">
+      <div class="total-pill pill-positive">
+        <div class="pill-num" id="total-pos">—</div>
+        <div class="pill-lbl">✅ Positive</div>
+      </div>
+      <div class="total-pill pill-neutral">
+        <div class="pill-num" id="total-neu">—</div>
+        <div class="pill-lbl">😐 Neutral</div>
+      </div>
+      <div class="total-pill pill-negative">
+        <div class="pill-num" id="total-neg">—</div>
+        <div class="pill-lbl">❌ Negative</div>
+      </div>
+    </div>
+
+    <!-- Per-product chart -->
+    <div id="product-chart-wrap" style="display:none; margin-top:1.5rem;">
+      <h2 style="font-size:1rem; margin-bottom:.75rem;">📊 Sentiment per Product</h2>
+      <div class="chart-wrap">
+        <canvas id="product-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. Top Complaint Keywords ── -->
+  <div class="card">
+    <h2>🔑 Top Complaint Keywords</h2>
+    <p style="font-size:.85rem; color:#718096; margin-bottom:.75rem;">
+      Most frequent words in negative reviews — upload a CSV above to populate.
+    </p>
+    <div id="keywords-list"><em style="color:#a0aec0; font-size:.9rem;">No data yet.</em></div>
+  </div>
+
+  <!-- ── 4. Monthly Sentiment Trend ── -->
+  <div class="card">
+    <h2>📈 Monthly Sentiment Trend</h2>
+    <p style="font-size:.85rem; color:#718096; margin-bottom:.75rem;">
+      Populated automatically from the batch upload date column.
+    </p>
+    <div class="chart-wrap">
+      <canvas id="trend-chart"></canvas>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ============================================================
+   State
+   ============================================================ */
+let productChartInst = null;
+let trendChartInst   = null;
+
+/* ============================================================
+   1. Single Predict
+   ============================================================ */
+async function predictSingle() {
+  const review = document.getElementById('review-input').value.trim();
+  const result = document.getElementById('predict-result');
+  const btn    = document.getElementById('predict-btn');
+
+  if (!review) {
+    showResult(result, null, 'Please enter a review text.');
+    return;
+  }
+
+  btn.disabled  = true;
+  btn.innerHTML = '<span class="spinner"></span>Analysing…';
+  result.style.display = 'none';
+
+  try {
+    const res  = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Unknown error');
+
+    const badgeClass = `badge-${data.sentiment}`;
+    const emoji = data.sentiment === 'positive' ? '😊'
+                : data.sentiment === 'neutral'  ? '😐' : '😞';
+
+    result.className     = `result-${data.sentiment}`;
+    result.style.display = 'block';
+    result.innerHTML = `
+      ${emoji} &nbsp;
+      <span class="badge ${badgeClass}">${data.sentiment}</span>
+      &nbsp; Confidence: <strong>${(data.confidence * 100).toFixed(1)}%</strong>
+      <div style="margin-top:.5rem; font-size:.82rem; color:#718096;">
+        Positive ${pct(data.probabilities.positive)} &nbsp;|&nbsp;
+        Neutral ${pct(data.probabilities.neutral)} &nbsp;|&nbsp;
+        Negative ${pct(data.probabilities.negative)}
+      </div>`;
+  } catch (e) {
+    showResult(result, null, e.message);
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = 'Analyse Sentiment';
+  }
+}
+
+function pct(v) { return v !== undefined ? (v * 100).toFixed(1) + '%' : '—'; }
+
+function showResult(el, data, errorMsg) {
+  el.style.display = 'block';
+  if (errorMsg) {
+    el.className = '';
+    el.innerHTML = `<div class="error-msg">⚠ ${errorMsg}</div>`;
+  }
+}
+
+/* ============================================================
+   2. Batch CSV Upload
+   ============================================================ */
+async function handleBatchUpload() {
+  const fileInput  = document.getElementById('csv-file');
+  const statusEl   = document.getElementById('batch-status');
+  const downloadEl = document.getElementById('download-link');
+  const totalsRow  = document.getElementById('totals-row');
+
+  if (!fileInput.files.length) return;
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  statusEl.innerHTML = '<span class="spinner" style="border-color:#667eea; border-top-color:transparent"></span> Processing…';
+  downloadEl.style.display = 'none';
+  totalsRow.style.display  = 'none';
+  document.getElementById('product-chart-wrap').style.display = 'none';
+
+  try {
+    const res  = await fetch('/analyze-batch', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Server error');
+
+    statusEl.innerHTML = `✅ Processed <strong>${data.rows_processed}</strong> reviews.`;
+    downloadEl.style.display = 'inline';
+
+    // Totals
+    document.getElementById('total-pos').textContent = data.total_counts.positive ?? 0;
+    document.getElementById('total-neu').textContent = data.total_counts.neutral  ?? 0;
+    document.getElementById('total-neg').textContent = data.total_counts.negative ?? 0;
+    totalsRow.style.display = 'flex';
+
+    // Per-product bar chart
+    renderProductChart(data.per_product_breakdown);
+
+    // Keywords
+    renderKeywords(data.top_negative_keywords);
+
+    // Fetch trend
+    fetchTrend();
+
+  } catch (e) {
+    statusEl.innerHTML = `<div class="error-msg">⚠ ${e.message}</div>`;
+  }
+}
+
+/* ============================================================
+   3. Per-product Bar Chart
+   ============================================================ */
+function renderProductChart(breakdown) {
+  const wrap = document.getElementById('product-chart-wrap');
+  const ctx  = document.getElementById('product-chart').getContext('2d');
+
+  const labels    = Object.keys(breakdown);
+  const positives = labels.map(p => breakdown[p].positive ?? 0);
+  const neutrals  = labels.map(p => breakdown[p].neutral  ?? 0);
+  const negatives = labels.map(p => breakdown[p].negative ?? 0);
+
+  if (productChartInst) productChartInst.destroy();
+
+  productChartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Positive', data: positives, backgroundColor: '#68d391' },
+        { label: 'Neutral',  data: neutrals,  backgroundColor: '#f6ad55' },
+        { label: 'Negative', data: negatives, backgroundColor: '#fc8181' },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}`,
+          },
+        },
+      },
+      scales: {
+        x: { stacked: false },
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  });
+
+  wrap.style.display = 'block';
+}
+
+/* ============================================================
+   4. Keywords
+   ============================================================ */
+function renderKeywords(keywords) {
+  const container = document.getElementById('keywords-list');
+  if (!keywords || keywords.length === 0) {
+    container.innerHTML = '<em style="color:#a0aec0; font-size:.9rem;">No negative reviews found.</em>';
+    return;
+  }
+  container.innerHTML = keywords
+    .map(k => `<span class="kw-tag">${k.keyword}<span>(${k.count})</span></span>`)
+    .join('');
+}
+
+/* ============================================================
+   5. Sentiment Trend Line Chart
+   ============================================================ */
+async function fetchTrend() {
+  try {
+    const res  = await fetch('/sentiment-trend');
+    const data = await res.json();
+    if (!res.ok || !data.trend) return;
+    renderTrendChart(data.trend);
+  } catch (_) {}
+}
+
+function renderTrendChart(trend) {
+  const ctx    = document.getElementById('trend-chart').getContext('2d');
+  const labels = trend.map(t => t.month);
+
+  if (trendChartInst) trendChartInst.destroy();
+
+  trendChartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label:       'Positive %',
+          data:         trend.map(t => t.positive_pct),
+          borderColor:  '#38a169',
+          backgroundColor: 'rgba(56,161,105,.1)',
+          tension:      .3,
+          fill:         true,
+        },
+        {
+          label:       'Neutral %',
+          data:         trend.map(t => t.neutral_pct),
+          borderColor:  '#dd6b20',
+          backgroundColor: 'rgba(221,107,32,.1)',
+          tension:      .3,
+          fill:         true,
+        },
+        {
+          label:       'Negative %',
+          data:         trend.map(t => t.negative_pct),
+          borderColor:  '#e53e3e',
+          backgroundColor: 'rgba(229,62,62,.1)',
+          tension:      .3,
+          fill:         true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend:  { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}%`,
+          },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: v => v + '%' },
+        },
+      },
+    },
+  });
+}
+
+/* Allow pressing Enter (Ctrl+Enter in textarea) to trigger predict */
+document.getElementById('review-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) predictSingle();
+});
+</script>
+</body>
+</html>
