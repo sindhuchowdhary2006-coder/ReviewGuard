@@ -85,11 +85,12 @@ def train(data_path: str):
     print("=" * 50)
 
     print("\nPer-class report:")
-    print(classification_report(y_test, y_pred, target_names=LABEL_CLASSES, zero_division=0))
+    present_classes = sorted(set(y_test) | set(y_pred))
+    print(classification_report(y_test, y_pred, labels=present_classes, zero_division=0))
 
     # Confusion matrix
-    cm = confusion_matrix(y_test, y_pred, labels=LABEL_CLASSES)
-    cm_df = pd.DataFrame(cm, index=LABEL_CLASSES, columns=LABEL_CLASSES)
+    cm = confusion_matrix(y_test, y_pred, labels=present_classes)
+    cm_df = pd.DataFrame(cm, index=present_classes, columns=present_classes)
     print("Confusion Matrix (rows = actual, columns = predicted):")
     print(cm_df.to_string())
 
@@ -99,8 +100,8 @@ def train(data_path: str):
     if off_diag.max() > 0:
         row, col = np.unravel_index(off_diag.argmax(), off_diag.shape)
         print(
-            f"\n⚠  Most common confusion: actual '{LABEL_CLASSES[row]}' "
-            f"predicted as '{LABEL_CLASSES[col]}' ({off_diag[row, col]} times)"
+            f"\n⚠  Most common confusion: actual '{present_classes[row]}' "
+            f"predicted as '{present_classes[col]}' ({off_diag[row, col]} times)"
         )
 
     # ------------------------------------------------------------------
@@ -139,19 +140,31 @@ if __name__ == "__main__":
                 "Works perfectly, no issues at all so far.",
                 "Sluggish performance and constant freezing issues.",
                 "Pretty good for the price range honestly.",
+                "Okay product, neither good nor bad really.",
+                "Mediocre quality but acceptable for the price.",
+                "Nothing special, just an average device overall.",
+                "Very poor quality, screen stopped working quickly.",
+                "Outstanding product, exceeded all my expectations!",
+                "Terrible customer service and product quality.",
+                "Highly recommend this to everyone, fantastic value.",
+                "It is fine, works as expected nothing more.",
+                "Waste of money, completely stopped working.",
+                "Love this product, will definitely buy again.",
             ],
-            'rating':       [5, 1, 3, 5, 1, 4, 1, 5, 2, 3, 5, 1, 5, 2, 4],
+            'rating': [5,1,3,5,1,4,1,5,2,3,5,1,5,2,4,3,3,3,1,5,1,5,3,1,5],
             'date': [
-                '2023-01-10', '2023-01-15', '2023-02-05',
-                '2023-02-20', '2023-03-01', '2023-03-15',
-                '2023-04-10', '2023-04-25', '2023-05-05',
-                '2023-05-20', '2023-06-01', '2023-06-15',
-                '2023-07-10', '2023-07-25', '2023-08-01',
+                '2023-01-10','2023-01-15','2023-02-05','2023-02-20','2023-03-01',
+                '2023-03-15','2023-04-10','2023-04-25','2023-05-05','2023-05-20',
+                '2023-06-01','2023-06-15','2023-07-10','2023-07-25','2023-08-01',
+                '2023-08-10','2023-08-15','2023-09-01','2023-09-10','2023-09-15',
+                '2023-10-01','2023-10-10','2023-10-15','2023-11-01','2023-11-10',
             ],
             'product_name': [
-                'PhoneX', 'PhoneX', 'TabletY', 'PhoneX', 'TabletY',
-                'PhoneX', 'EarBudsZ', 'PhoneX', 'TabletY', 'EarBudsZ',
-                'EarBudsZ', 'TabletY', 'PhoneX', 'TabletY', 'EarBudsZ',
+                'PhoneX','PhoneX','TabletY','PhoneX','TabletY',
+                'PhoneX','EarBudsZ','PhoneX','TabletY','EarBudsZ',
+                'EarBudsZ','TabletY','PhoneX','TabletY','EarBudsZ',
+                'PhoneX','TabletY','EarBudsZ','PhoneX','TabletY',
+                'EarBudsZ','PhoneX','TabletY','EarBudsZ','PhoneX',
             ],
         })
         os.makedirs("data", exist_ok=True)
